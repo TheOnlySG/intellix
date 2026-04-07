@@ -70,7 +70,7 @@ async function initDarkVeil() {
 
   try {
     const { Renderer, Program, Mesh, Triangle, Vec2 } = await import(
-      './node_modules/ogl/src/index.js'
+      'https://esm.sh/ogl'
     );
 
     const parent = canvas.parentElement;
