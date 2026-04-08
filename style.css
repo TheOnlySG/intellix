@@ -76,15 +76,18 @@ body.is-loading {
 .tech-text {
   position: relative;
   font-family: 'Inter', system-ui, sans-serif;
-  font-size: clamp(2rem, 7vw, 5rem);
+  font-size: clamp(1.8rem, 7vw, 5rem);
   font-weight: 800;
   color: #fff;
   letter-spacing: 0.4em;
+  margin-right: -0.4em; /* Offset for optical centering */
+  text-align: center;
   text-transform: uppercase;
   z-index: 2;
   will-change: transform, opacity, filter;
   opacity: 0;
   text-shadow: 0 0 30px rgba(124, 58, 237, 0.6);
+  padding: 0 10px; /* Safety padding */
 }
 
 /* ── PILL NAVBAR ────────────────────────────────────────────────── */
