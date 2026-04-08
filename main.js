@@ -410,13 +410,12 @@ function initCubesBackground() {
   });
 }
 
-/* ── PRELOADER ───────────────────────────────────────────────────── */
+/* ── PRELOADER: Quantum Portal Sequence ───────────────────────────── */
 function initPreloader(onComplete) {
   const preloader = document.getElementById('preloader');
-  const topDoor = document.getElementById('preloader-top');
-  const bottomDoor = document.getElementById('preloader-bottom');
-  const textEl = document.getElementById('preloader-text');
-  const laser = document.getElementById('preloader-laser');
+  const text = document.getElementById('tech-text');
+  const rings = document.querySelectorAll('.tech-ring');
+  const glow = document.querySelector('.tech-glow');
   const appWrapper = document.getElementById('app-wrapper');
 
   if (!preloader) {
@@ -424,59 +423,65 @@ function initPreloader(onComplete) {
     return;
   }
 
-  // Set initial dramatic zoom on the app wrapper
-  gsap.set(appWrapper, { scale: 1.15, filter: 'blur(10px)', opacity: 0 });
+  // Pre-set states (ZERO SCALE/FILTER on appWrapper to prevent WebGL Lag)
+  gsap.set(appWrapper, { opacity: 0 });
 
-  const targetText = 'INTELLIX';
-  const chars = '!<>-_\\/[]{}—=+*^#________';
+  const tl = gsap.timeline({
+    onComplete: () => {
+      document.body.classList.remove('is-loading');
+      preloader.remove(); 
+      ScrollTrigger.refresh(); 
+      if (onComplete) onComplete();
+    }
+  });
+
+  // 1. Concentric Iris rings expand dynamically
+  tl.fromTo(rings, 
+    { scale: 0, opacity: 0 },
+    { 
+      scale: (i) => 1 + (i * 0.4), 
+      opacity: (i) => 0.8 - (i * 0.2), 
+      duration: 1.8, 
+      stagger: 0.15, 
+      ease: "power3.out" 
+    }
+  )
+  .to(glow, { opacity: 1, duration: 1.5 }, "-=1.5")
   
-  let frame = 0;
-  let decryptedLength = 0;
-  const maxFrames = 75; // frames until full decryption
+  // 2. Text materializes in the center (unblurring is smooth on text)
+  .fromTo(text, 
+    { scale: 0.9, opacity: 0, filter: 'blur(15px)' },
+    { scale: 1, opacity: 1, filter: 'blur(0px)', duration: 1.8, ease: "power2.out" },
+    "-=1.2" // Overlaps comfortably with ring appearance
+  )
 
-  function scramble() {
-    let output = '';
-    for (let i = 0; i < targetText.length; i++) {
-      if (i < decryptedLength) {
-        output += targetText[i];
-      } else {
-        output += chars[Math.floor(Math.random() * chars.length)];
-      }
-    }
-    textEl.innerText = output;
+  // 3. Portal bursts open!
+  .to(text, { 
+    scale: 1.3, 
+    opacity: 0, 
+    filter: 'blur(8px)', 
+    duration: 0.6, 
+    ease: "power2.in" 
+  }, "+=0.3") // Slight hangtime so the user reads it
+  
+  .to(rings, { 
+    scale: 4, 
+    opacity: 0, 
+    borderWidth: 0,
+    duration: 0.7, 
+    stagger: 0.05, 
+    ease: "power3.in" 
+  }, "-=0.5")
 
-    if (frame < maxFrames) {
-      if (frame % Math.floor(maxFrames / targetText.length) === 0) {
-        decryptedLength++;
-      }
-      frame++;
-      requestAnimationFrame(scramble);
-    } else {
-      textEl.innerText = targetText;
-      triggerUnlock();
-    }
-  }
-
-  function triggerUnlock() {
-    const tl = gsap.timeline({
-      onComplete: () => {
-        document.body.classList.remove('is-loading');
-        preloader.remove(); // Remove from DOM
-        ScrollTrigger.refresh(); // Ensure ScrollTrigger recalcs layout
-        if (onComplete) onComplete();
-      }
-    });
-
-    tl.to(laser, { scaleX: 1, duration: 0.4, ease: 'power4.inOut' })
-      .to(textEl, { opacity: 0, scale: 1.2, filter: 'blur(10px)', duration: 0.15, ease: 'power2.out' }, '+=0.1')
-      // Massive laser explosion filling the screen
-      .to(laser, { scaleY: 250, opacity: 1, duration: 0.4, ease: 'power4.in' }, '-=0.1')
-      // Fade out the entire preloader revealing the site seamlessly
-      .to(preloader, { opacity: 0, duration: 0.8, ease: 'power2.out' })
-      .to(appWrapper, { scale: 1, filter: 'blur(0px)', opacity: 1, duration: 1.2, ease: 'power3.out' }, '-=0.8');
-  }
-
-  scramble();
+  .to(glow, { opacity: 0, duration: 0.4 }, "-=0.4")
+  
+  // 4. Preloader crossfades out seamlessly to reveal the site 
+  .to(preloader, { opacity: 0, duration: 0.8 }, "-=0.2")
+  .to(appWrapper, { 
+    opacity: 1, 
+    duration: 1.5, 
+    ease: "power2.inOut" 
+  }, "-=0.8");
 }
 
 /* ── BOOT ─────────────────────────────────────────────────────────── */
