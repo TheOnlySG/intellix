@@ -150,35 +150,55 @@ function initAnimations() {
     tl.fromTo(el, from, to, delay);
   });
 
-  /* Scroll reveals */
+  /* Cyber Scramble Utility */
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$£%^&*()_+-=';
+  function scrambleText(element, originalText) {
+    let iteration = 0;
+    const interval = setInterval(() => {
+      element.innerText = originalText.split('').map((char, index) => {
+        if (index < iteration || char === ' ') return char;
+        return chars[Math.floor(Math.random() * chars.length)];
+      }).join('');
+      if (iteration >= originalText.length) clearInterval(interval);
+      iteration += 1/3; // Controls speed of decryption
+    }, 25);
+  }
+
+  /* Scroll reveals & Scrambles */
   document.querySelectorAll(
     '.events [data-animate], .about [data-animate], .register [data-animate]'
   ).forEach(el => {
     const delay = parseFloat(el.dataset.delay) || 0;
+    const isScramble = el.dataset.animate === 'scramble';
+    const originalText = isScramble ? el.innerText : null;
+    if (isScramble) el.innerText = '';
+
     gsap.fromTo(el,
-      { opacity: 0, y: 40 },
+      { opacity: 0, y: isScramble ? 0 : 40 },
       { opacity: 1, y: 0, duration: 0.9, delay, ease: 'power3.out',
-        scrollTrigger: { trigger: el, start: 'top 88%', toggleActions: 'play none none none' }
+        scrollTrigger: { 
+          trigger: el, 
+          start: 'top 88%', 
+          toggleActions: 'play none none none',
+          onEnter: () => { 
+            if (isScramble) scrambleText(el, originalText); 
+          }
+        }
       }
     );
   });
 
-
-
-  /* Card 3D tilt */
-  document.querySelectorAll('.event-card').forEach(card => {
-    const inner = card.querySelector('.event-card__inner');
-    card.addEventListener('mousemove', e => {
-      const r = card.getBoundingClientRect();
-      const rx = ((e.clientY - r.top - r.height / 2) / (r.height / 2)) * -5;
-      const ry = ((e.clientX - r.left - r.width / 2) / (r.width / 2)) * 5;
-      gsap.to(inner, { rotateX: rx, rotateY: ry, duration: 0.4, ease: 'power2.out', overwrite: 'auto' });
-    });
-    card.addEventListener('mouseleave', () => {
-      gsap.to(inner, { rotateX: 0, rotateY: 0, duration: 0.6, ease: 'power2.out', overwrite: 'auto' });
-    });
+  /* Hero Parallax ScrollDepth */
+  gsap.to('#darkveil-canvas', {
+    y: 100,
+    ease: 'none',
+    scrollTrigger: {
+      trigger: '.hero',
+      start: 'top top',
+      end: 'bottom top',
+      scrub: true
+    }
   });
-
   /* Smooth anchor scroll */
   document.querySelectorAll('a[href^="#"]').forEach(link => {
     link.addEventListener('click', e => {
@@ -484,6 +504,140 @@ function initPreloader(onComplete) {
   }, "-=0.8");
 }
 
+/* ── CUSTOM MAGNETIC CURSOR ─────────────────────────────────────── */
+function initCustomCursor() {
+  const cursor = document.getElementById('custom-cursor');
+  const follower = document.getElementById('custom-cursor-follower');
+  if (!cursor || !follower) return;
+
+  // Use quickTo for incredibly performant physics updates
+  const xToCursor = gsap.quickTo(cursor, "x", {duration: 0.1, ease: 'power3'});
+  const yToCursor = gsap.quickTo(cursor, "y", {duration: 0.1, ease: 'power3'});
+  
+  const xToFollower = gsap.quickTo(follower, "x", {duration: 0.4, ease: "power3"});
+  const yToFollower = gsap.quickTo(follower, "y", {duration: 0.4, ease: "power3"});
+
+  let isMagnetic = false;
+  let mouseX = window.innerWidth / 2;
+  let mouseY = window.innerHeight / 2;
+
+  // Track globally
+  window.addEventListener("mousemove", (e) => {
+    mouseX = e.clientX;
+    mouseY = e.clientY;
+    
+    if (!isMagnetic) {
+      xToCursor(mouseX); yToCursor(mouseY);
+      xToFollower(mouseX); yToFollower(mouseY);
+    }
+  });
+
+  // Attach magnetic snap logic to interactive elements
+  const magnets = document.querySelectorAll('a, button, .pill, .event-card, .btn');
+  
+  magnets.forEach((el) => {
+    el.addEventListener('mouseenter', () => {
+      isMagnetic = true;
+      follower.classList.add('is-magnetic');
+      gsap.to(cursor, { opacity: 0, duration: 0.2 });
+      
+      const rect = el.getBoundingClientRect();
+      const style = window.getComputedStyle(el);
+      
+      // Morph follower into the shape of the hovered element
+      gsap.to(follower, {
+        width: rect.width + 12, // Padding buffer
+        height: rect.height + 12,
+        borderRadius: style.borderRadius || '8px',
+        duration: 0.3, 
+        ease: "power2.out"
+      });
+    });
+
+    el.addEventListener('mousemove', (e) => {
+      // In magnetic state, snap to button center and stretch lazily toward mouse
+      const rect = el.getBoundingClientRect();
+      const elCenterX = rect.left + rect.width / 2;
+      const elCenterY = rect.top + rect.height / 2;
+      
+      // Pull strength determines how strongly the magnet bends towards cursor
+      const pullX = (e.clientX - elCenterX) * 0.4; 
+      const pullY = (e.clientY - elCenterY) * 0.4;
+      
+      xToFollower(elCenterX + pullX);
+      yToFollower(elCenterY + pullY);
+      
+      // Also physically warp the button element to create a tactile pull
+      gsap.to(el, {
+        x: pullX * 0.6,
+        y: pullY * 0.6,
+        duration: 0.4,
+        ease: "power2.out"
+      });
+    });
+
+    el.addEventListener('mouseleave', () => {
+      isMagnetic = false;
+      follower.classList.remove('is-magnetic');
+      gsap.to(cursor, { opacity: 1, duration: 0.2 });
+      
+      gsap.to(follower, {
+        width: 40, height: 40, borderRadius: "50%",
+        duration: 0.3, ease: "power2.out"
+      });
+      
+      // Snap element back to origin like a spring
+      gsap.to(el, { x: 0, y: 0, duration: 0.7, ease: "elastic.out(1, 0.3)" });
+    });
+  });
+}
+
+/* ── 3D HOLOGRAPHIC EVENT CARDS ─────────────────────────────────── */
+function init3DCards() {
+  const cards = document.querySelectorAll('.event-card');
+  
+  cards.forEach(card => {
+    const glare = card.querySelector('.event-card__glare');
+    
+    card.addEventListener('mousemove', (e) => {
+      const rect = card.getBoundingClientRect();
+      // Cursor position from center (-1 to 1)
+      const x = (e.clientX - rect.left - rect.width / 2) / (rect.width / 2);
+      const y = (e.clientY - rect.top - rect.height / 2) / (rect.height / 2);
+      
+      const glareX = (e.clientX - rect.left) / rect.width * 100;
+      const glareY = (e.clientY - rect.top) / rect.height * 100;
+      
+      const maxRotX = 14; 
+      const maxRotY = -14; 
+      
+      gsap.to(card, {
+        rotationX: y * maxRotX,
+        rotationY: x * maxRotY,
+        transformPerspective: 1000,
+        ease: "power2.out",
+        duration: 0.5
+      });
+      
+      if (glare) {
+        gsap.to(glare, {
+          background: `radial-gradient(circle at ${glareX}% ${glareY}%, rgba(124, 58, 237, 0.4), transparent 50%)`,
+          duration: 0.1
+        });
+      }
+    });
+    
+    card.addEventListener('mouseleave', () => {
+      gsap.to(card, {
+        rotationX: 0,
+        rotationY: 0,
+        ease: "elastic.out(1, 0.5)",
+        duration: 1.2
+      });
+    });
+  });
+}
+
 /* ── BOOT ─────────────────────────────────────────────────────────── */
 initDarkVeil();
 initPillNav();
@@ -491,5 +645,7 @@ initCubesBackground();
 
 // Boot main animations ONLY after preloader finishes opening sequence
 initPreloader(() => {
+  initCustomCursor();
+  init3DCards();
   initAnimations();
 });
